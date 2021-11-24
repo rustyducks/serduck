@@ -1,64 +1,56 @@
-//use std::net::{SocketAddr, UdpSocket};
+//
 //use std::cmp::PartialEq;
 mod link;
 mod transport;
-use core::panic;
-use std::fmt::format;
+mod serial_link;
+mod udp_link;
+
 use std::sync::mpsc;
 use std::{thread, time::Duration};
+use serial_link::{SerialLinkConfig, SerialLink};
+use udp_link::UdpLink;
 
-use link::SerialLink;
-//use link::{SerialLink};
-
-
-// enum Client {
-//     UDP(SocketAddr),
-//     SERIAL,
-// }
-
-// impl PartialEq for Client {
-//     fn eq(&self, other: &Self) -> bool {
-//         match (self, other) {
-//             (Self::UDP(l0), Self::UDP(r0)) => l0 == r0,
-//             _ => false,
-//         }
-//     }
-// }
+use link::Link;
 
 const PORT1: &str = "/dev/ttyUSB0";
-
+const UDP_SERVER: &str = "127.0.0.1:3456";
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
 
-    //let (tx, rx) = mpsc::channel::<bool>();
+    
 
-
-
-
-
-
-    //let mut clients: Vec<Client> = Vec::new();
-    //let socket = UdpSocket::bind("127.0.0.1:34254")?;
-
-    let mut serials: Vec<SerialLink> = Vec::new();
+    let mut serials: Vec<Box<SerialLink>> = Vec::new();
+    let mut udps: Vec<UdpLink> = Vec::new();
     let mut errors : Vec<String> = Vec::new();
 
 
     let (tx, _rx) = mpsc::channel::<usize>();
 
-    let slc = link::SerialLinkConfig {
-        port:PORT1.into(),
-        baudrate: 38400,
-        timeout: 1,
-    };
 
-    if let Ok(sl) = slc.start(tx.clone()) {
-        serials.push(sl);
-    } else {
-        errors.push(format!("{}", PORT1));
-        panic!("merde");
+    match UdpLink::new(UDP_SERVER, tx.clone()) {
+        Ok(ul) => udps.push(ul),
+        Err(e) => {
+            let msg = format!("Error for {}: {:?}", PORT1, e);
+            println!("{}", msg);
+            errors.push(msg);
+        },
     }
+
+    // let slc = SerialLinkConfig {
+    //     port:PORT1.into(),
+    //     baudrate: 38400,
+    //     timeout: 1,
+    // };
+
+    // match slc.start(tx.clone()) {
+    //     Ok(sl) => serials.push(Box::new(sl)),
+    //     Err(e) => {
+    //         let msg = format!("Error for {}: {:?}", PORT1, e);
+    //         println!("{}", msg);
+    //         errors.push(msg);
+    //     },
+    // }
 
 
 
@@ -66,14 +58,23 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
         if let Ok(msg) =  _rx.try_recv() {
             println!("msg: {}", msg);
+            for s in &serials {
+                s.send_msg(456)?;
+            }
+            for s in &udps {
+                s.send_msg(456)?;
+            }
         }
 
         thread::sleep(Duration::from_millis(1));    
     }
 
+
     for s in serials {
-        s.send_msg(456)?;
-        s.join();
+        s.stop();
+    }
+    for s in udps {
+        s.stop();
     }
 
 
