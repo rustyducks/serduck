@@ -5,26 +5,26 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use crate::transport::Transport;
 use anyhow::Result;
-use crate::link::Link;
+use crate::link::{Link, Message};
 use std::net::{SocketAddr, UdpSocket};
 
 
 pub struct UdpLink {
     pub server_addr: String,
-    tx_msg: Sender<usize>,
+    tx_msg: Sender<Message>,
     tx_cmd: Sender<usize>,
-    th: JoinHandle<()>
+    th: Option<JoinHandle<()>>
 }
 
 
 
 
 impl UdpLink {
-    pub fn new(addr: &str, sink: Sender<usize>) -> Result<UdpLink>{
+    pub fn new(addr: &str, sink: Sender<Message>, timeout: u64) -> Result<UdpLink>{
         let socket = UdpSocket::bind(addr)?;
+        socket.set_read_timeout(Some(Duration::from_millis(timeout))).expect("UDP set timeout failed");
 
-
-        let (tx_msg, rx_msg) = mpsc::channel::<usize>();
+        let (tx_msg, rx_msg) = mpsc::channel::<Message>();
         let (tx_cmd, rx_cmd) = mpsc::channel::<usize>();
         let th = thread::spawn(move || UdpLink::run(socket, rx_msg, rx_cmd, sink));
         
@@ -32,12 +32,12 @@ impl UdpLink {
             server_addr: addr.into(),
             tx_msg,
             tx_cmd,
-            th,
+            th: Some(th),
         })
         
     }
 
-    fn run(socket: UdpSocket, rx_msg: Receiver<usize>, rx_cmd: Receiver<usize>, sink: Sender<usize>) {
+    fn run(socket: UdpSocket, rx_msg: Receiver<Message>, rx_cmd: Receiver<usize>, sink: Sender<Message>) {
         let mut trans = Transport::new();
 
         let mut clients: Vec<SocketAddr> = vec![];
@@ -53,10 +53,8 @@ impl UdpLink {
 
             match rx_msg.try_recv() {
                 Ok(msg) => {
-                    println!("serial got {}", msg);
-                    let msg = format!("{}", msg);
                     for c in &clients {
-                        let _ = socket.send_to(msg.as_bytes(), c);
+                        let _ = socket.send_to(&Transport::encode(&msg), c);
                     }
                 },
                 _ => {}
@@ -71,14 +69,12 @@ impl UdpLink {
                         println!("client known!!!!");
                     }
                     //println!("{}", nb);
-                    if let Ok(n) = trans.put(&buffer[0..nb]) {
-                        println!("cool {}", n);
-                        sink.send(n).expect("Coordinator is down.");
+                    if let Ok(msg) = trans.put(&buffer[0..nb]) {
+                        sink.send(msg).expect("Coordinator is down.");
                     }
                 },
-                Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => (),
                 Err(e) => eprintln!("{:?}", e),
-
             };
 
             
@@ -92,13 +88,17 @@ impl UdpLink {
 }
 
 impl Link for UdpLink {
-    fn send_msg(&self, t: usize) -> Result<()> {
+    fn send_msg(&self, t: Message) -> Result<()> {
         self.tx_msg.send(t)?;
         Ok(())
     }
+}
 
-    fn stop(self) {
-        let _ = self.tx_cmd.send(0);
-        self.th.join().unwrap();
+
+impl Drop for UdpLink {
+    fn drop(&mut self) {
+        self.tx_cmd.send(0).unwrap();
+        self.th.take().unwrap().join().unwrap();
+        println!("UdpLink destroyed");
     }
 }

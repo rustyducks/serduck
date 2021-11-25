@@ -6,7 +6,7 @@ use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use serialport::{SerialPort};
 use crate::transport::Transport;
 use anyhow::Result;
-use crate::link::Link;
+use crate::link::{Link, Message};
 
 #[derive(Clone)]
 pub struct SerialLinkConfig {
@@ -17,22 +17,22 @@ pub struct SerialLinkConfig {
 
 pub struct SerialLink {
     pub config: SerialLinkConfig,
-    tx_msg: Sender<usize>,
+    tx_msg: Sender<Message>,
     tx_cmd: Sender<usize>,
-    th: JoinHandle<()>
+    th: Option<JoinHandle<()>>
 }
 
 
 impl SerialLinkConfig {
 
-    pub fn start(self, sink: Sender<usize>) -> Result<SerialLink> {
+    pub fn start(self, sink: Sender<Message>) -> Result<SerialLink> {
         let serial =
             serialport::new(self.port.clone(), self.baudrate)
             .timeout(Duration::from_millis(self.timeout))
             .open()?;
 
 
-        let (tx_msg, rx_msg) = mpsc::channel::<usize>();
+        let (tx_msg, rx_msg) = mpsc::channel::<Message>();
         let (tx_cmd, rx_cmd) = mpsc::channel::<usize>();
         let th = thread::spawn(move || SerialLink::run(serial, rx_msg, rx_cmd, sink));
         
@@ -40,7 +40,7 @@ impl SerialLinkConfig {
             config: self,
             tx_msg,
             tx_cmd,
-            th,
+            th: Some(th),
         })
         
     }
@@ -49,7 +49,7 @@ impl SerialLinkConfig {
 
 impl SerialLink {
 
-    fn run(mut serial: Box<dyn SerialPort>, rx_msg: Receiver<usize>, rx_cmd: Receiver<usize>, sink: Sender<usize>) {
+    fn run(mut serial: Box<dyn SerialPort>, rx_msg: Receiver<Message>, rx_cmd: Receiver<usize>, sink: Sender<Message>) {
         let mut trans = Transport::new();
 
         loop {
@@ -63,9 +63,7 @@ impl SerialLink {
 
             match rx_msg.try_recv() {
                 Ok(msg) => {
-                    println!("serial got {}", msg);
-                    let msg = format!("{}", msg);
-                    let ret = serial.write(msg.as_bytes());
+                    let ret = serial.write(&Transport::encode(&msg));
                 },
                 _ => {}
             }
@@ -74,9 +72,8 @@ impl SerialLink {
             match (*serial).read(&mut buffer) {
                 Ok(nb) => {
                     //println!("{}", nb);
-                    if let Ok(n) = trans.put(&buffer[0..nb]) {
-                        println!("cool {}", n);
-                        sink.send(n).expect("Coordinator is down.");
+                    if let Ok(msg) = trans.put(&buffer[0..nb]) {
+                        sink.send(msg).expect("Coordinator is down.");
                     }
                 },
                 Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
@@ -95,13 +92,16 @@ impl SerialLink {
 }
 
 impl Link for SerialLink {
-    fn send_msg(&self, t: usize) -> Result<()> {
+    fn send_msg(&self, t: Message) -> Result<()> {
         self.tx_msg.send(t)?;
         Ok(())
     }
+}
 
-    fn stop(self) {
-        let _ = self.tx_cmd.send(0);
-        self.th.join().unwrap();
+impl Drop for SerialLink {
+    fn drop(&mut self) {
+        self.tx_cmd.send(0).unwrap();
+        self.th.take().unwrap().join().unwrap();
+        println!("SerialLink destroyed");
     }
 }

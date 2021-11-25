@@ -8,3 +8,5 @@ edition = "2018"
 [dependencies]
 serialport = "4.0.1"
 anyhow = "1.0.48"
+protobuf = "2"
+signal-hook = "0.3.10"
