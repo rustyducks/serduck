@@ -7,13 +7,12 @@ mod udp_link;
 
 use std::sync::mpsc;
 use std::{thread, time::Duration};
-use serial_link::{SerialLinkConfig, SerialLink};
+use serial_link::{SerialLinkConfig};
 use udp_link::UdpLink;
 
 use link::Link;
 
 use crate::link::Message;
-use std::io::Error;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -41,7 +40,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let slc = SerialLinkConfig {
         port:PORT1.into(),
-        baudrate: 38400,
+        baudrate: 57600,
         timeout: 1,
     };
 
@@ -59,7 +58,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     while !term.load(Ordering::Relaxed) {
 
         if let Ok(msg) =  rx.try_recv() {
-            println!("yes!");
+            //println!("yes!");
             for s in &links {
                 s.send_msg(msg.clone())?;
             }

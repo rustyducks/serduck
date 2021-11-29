@@ -66,7 +66,7 @@ impl UdpLink {
                     if !clients.contains(&addr) {
                         clients.push(addr);
                     } else {
-                        println!("client known!!!!");
+                        // println!("client known!!!!");
                     }
                     //println!("{}", nb);
                     if let Ok(msg) = trans.put(&buffer[0..nb]) {
