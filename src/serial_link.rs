@@ -63,7 +63,18 @@ impl SerialLink {
 
             match rx_msg.try_recv() {
                 Ok(msg) => {
-                    let ret = serial.write(&Transport::encode(&msg));
+                    let buf = Transport::encode(&msg);
+                    match serial.write(&buf) {
+                        Ok(n) if n == buf.len() => {
+
+                        },
+                        Ok(n) => {
+                            println!("{} bytes written to serial, but buffer was {} bytes long!", n, buf.len());
+                        },
+                        Err(e) => {
+                            println!("{:?}", e);
+                        }
+                    }
                 },
                 _ => {}
             }
