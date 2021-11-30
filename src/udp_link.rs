@@ -5,13 +5,13 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use crate::transport::Transport;
 use anyhow::Result;
-use crate::link::{Link, Message};
+use crate::link::{Link, LinkMessage};
 use std::net::{SocketAddr, UdpSocket};
 
 
 pub struct UdpLink {
     pub server_addr: String,
-    tx_msg: Sender<Message>,
+    tx_msg: Sender<LinkMessage>,
     tx_cmd: Sender<usize>,
     th: Option<JoinHandle<()>>
 }
@@ -20,11 +20,11 @@ pub struct UdpLink {
 
 
 impl UdpLink {
-    pub fn new(addr: &str, sink: Sender<Message>, timeout: u64) -> Result<UdpLink>{
+    pub fn new(addr: &str, sink: Sender<LinkMessage>, timeout: u64) -> Result<UdpLink>{
         let socket = UdpSocket::bind(addr)?;
         socket.set_read_timeout(Some(Duration::from_millis(timeout))).expect("UDP set timeout failed");
 
-        let (tx_msg, rx_msg) = mpsc::channel::<Message>();
+        let (tx_msg, rx_msg) = mpsc::channel::<LinkMessage>();
         let (tx_cmd, rx_cmd) = mpsc::channel::<usize>();
         let th = thread::spawn(move || UdpLink::run(socket, rx_msg, rx_cmd, sink));
         
@@ -37,7 +37,7 @@ impl UdpLink {
         
     }
 
-    fn run(socket: UdpSocket, rx_msg: Receiver<Message>, rx_cmd: Receiver<usize>, sink: Sender<Message>) {
+    fn run(socket: UdpSocket, rx_msg: Receiver<LinkMessage>, rx_cmd: Receiver<usize>, sink: Sender<LinkMessage>) {
         let mut trans = Transport::new();
 
         let mut clients: Vec<SocketAddr> = vec![];
@@ -53,8 +53,9 @@ impl UdpLink {
 
             match rx_msg.try_recv() {
                 Ok(msg) => {
+                    let buf = Transport::encode(&msg);
                     for c in &clients {
-                        let _ = socket.send_to(&Transport::encode(&msg), c);
+                        let _ = socket.send_to(&buf, c);
                     }
                 },
                 _ => {}
@@ -88,7 +89,7 @@ impl UdpLink {
 }
 
 impl Link for UdpLink {
-    fn send_msg(&self, t: Message) -> Result<()> {
+    fn send_msg(&self, t: LinkMessage) -> Result<()> {
         self.tx_msg.send(t)?;
         Ok(())
     }

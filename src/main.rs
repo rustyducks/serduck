@@ -9,7 +9,7 @@ use std::{thread, time::Duration, sync::mpsc};
 use anyhow::Result;
 use serial_link::{SerialLinkConfig, SerialLink};
 use udp_link::UdpLink;
-use link::{Link, Message};
+use link::{Link, LinkMessage};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use anyhow::anyhow;
@@ -38,7 +38,7 @@ fn main() -> Result<()> {
     let mut errors : Vec<String> = Vec::new();
 
 
-    let (tx, rx) = mpsc::channel::<Message>();
+    let (tx, rx) = mpsc::channel::<LinkMessage>();
     
 
     if let Some(serials) = matches.values_of("serial") {
@@ -87,7 +87,7 @@ fn main() -> Result<()> {
 }
 
 
-fn add_serial(serial_params: &str, tx: mpsc::Sender<Message>) -> Result<SerialLink> {
+fn add_serial(serial_params: &str, tx: mpsc::Sender<LinkMessage>) -> Result<SerialLink> {
     let params: Vec<_> = serial_params.split(':').collect();
     if params.len() == 2 {
         let port = params[0];
@@ -110,7 +110,7 @@ fn add_serial(serial_params: &str, tx: mpsc::Sender<Message>) -> Result<SerialLi
     }
 }
 
-fn add_udp(udp_params: &str, tx: mpsc::Sender<Message>) -> Result<UdpLink> {
+fn add_udp(udp_params: &str, tx: mpsc::Sender<LinkMessage>) -> Result<UdpLink> {
     match UdpLink::new(udp_params, tx, 1) {
         Ok(ul) => Ok(ul),
         Err(e) => {

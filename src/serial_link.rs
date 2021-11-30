@@ -6,7 +6,7 @@ use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use serialport::{SerialPort};
 use crate::transport::Transport;
 use anyhow::Result;
-use crate::link::{Link, Message};
+use crate::link::{Link, LinkMessage};
 
 #[derive(Clone)]
 pub struct SerialLinkConfig {
@@ -17,7 +17,7 @@ pub struct SerialLinkConfig {
 
 pub struct SerialLink {
     pub config: SerialLinkConfig,
-    tx_msg: Sender<Message>,
+    tx_msg: Sender<LinkMessage>,
     tx_cmd: Sender<usize>,
     th: Option<JoinHandle<()>>
 }
@@ -25,14 +25,14 @@ pub struct SerialLink {
 
 impl SerialLinkConfig {
 
-    pub fn start(self, sink: Sender<Message>) -> Result<SerialLink> {
+    pub fn start(self, sink: Sender<LinkMessage>) -> Result<SerialLink> {
         let serial =
             serialport::new(self.port.clone(), self.baudrate)
             .timeout(Duration::from_millis(self.timeout))
             .open()?;
 
 
-        let (tx_msg, rx_msg) = mpsc::channel::<Message>();
+        let (tx_msg, rx_msg) = mpsc::channel::<LinkMessage>();
         let (tx_cmd, rx_cmd) = mpsc::channel::<usize>();
         let th = thread::spawn(move || SerialLink::run(serial, rx_msg, rx_cmd, sink));
         
@@ -49,7 +49,7 @@ impl SerialLinkConfig {
 
 impl SerialLink {
 
-    fn run(mut serial: Box<dyn SerialPort>, rx_msg: Receiver<Message>, rx_cmd: Receiver<usize>, sink: Sender<Message>) {
+    fn run(mut serial: Box<dyn SerialPort>, rx_msg: Receiver<LinkMessage>, rx_cmd: Receiver<usize>, sink: Sender<LinkMessage>) {
         let mut trans = Transport::new();
 
         loop {
@@ -103,7 +103,7 @@ impl SerialLink {
 }
 
 impl Link for SerialLink {
-    fn send_msg(&self, t: Message) -> Result<()> {
+    fn send_msg(&self, t: LinkMessage) -> Result<()> {
         self.tx_msg.send(t)?;
         Ok(())
     }
