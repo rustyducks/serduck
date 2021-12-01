@@ -67,17 +67,6 @@ impl Transport {
         }
 
         Err(())
-        
-
-
-
-        // if buf_in.contains(&112) {
-        //     let msg: Vec<u8> = buf_in.iter().rev().map(|c| *c).collect();
-        //     let msg = Message::from_bytes(&msg[..]);
-        //     Ok(msg)
-        // } else {
-        //     Err(())    
-        // }
     }
 
     pub fn encode(msg: &LinkMessage) -> Vec<u8> {

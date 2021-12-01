@@ -1,9 +1,9 @@
-use anyhow::Result;
+// use anyhow::Result;
 
 
-pub trait Link {
-    fn send_msg(&self, t: LinkMessage) -> Result<()>;
-}
+// pub trait Link {
+//     fn send_msg(&self, t: LinkMessage) -> Result<()>;
+// }
 
 #[derive(Clone)]
 pub struct LinkMessage {
