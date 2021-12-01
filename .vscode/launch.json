@@ -7,34 +7,38 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'udpserial_bridge'",
+            "name": "Debug executable 'serduck'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=udpserial_bridge",
-                    "--package=udpserial_bridge"
+                    "--bin=serduck",
+                    "--package=serduck", 
                 ],
                 "filter": {
-                    "name": "udpserial_bridge",
+                    "name": "serduck",
                     "kind": "bin"
                 }
             },
-            "args": [],
+            "args": [
+                "--serial=/dev/ttyACM0",
+                "--baudrate=57600",
+                "--udp=127.0.0.1:3456"
+            ],
             "cwd": "${workspaceFolder}"
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'udpserial_bridge'",
+            "name": "Debug unit tests in executable 'serduck'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=udpserial_bridge",
-                    "--package=udpserial_bridge"
+                    "--bin=serduck",
+                    "--package=serduck"
                 ],
                 "filter": {
-                    "name": "udpserial_bridge",
+                    "name": "serduck",
                     "kind": "bin"
                 }
             },
