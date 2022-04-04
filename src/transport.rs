@@ -24,8 +24,8 @@ impl Transport {
         buffer.iter().fold(0, |acc, elt| acc ^ elt)
     }
 
-    pub fn put(&mut self, buf_in: &[u8]) -> Result<LinkMessage, ()> {
-
+    pub fn put(&mut self, buf_in: &[u8]) -> Vec<LinkMessage> {
+        let mut messages: Vec<LinkMessage> = Vec::new();
         for c in buf_in {
             match self.state {
                 RcvState::START1 => {
@@ -56,17 +56,15 @@ impl Transport {
                 },
                 RcvState::CHK => {
                     self.state = RcvState::START1;
-                    return if Self::checksum(self.buffer.as_slice()) == *c {
+                    if Self::checksum(self.buffer.as_slice()) == *c {
                         let msg = LinkMessage::from_bytes(self.buffer.as_slice());
-                        Ok(msg)
-                    } else {
-                        Err(())
-                    }
+                        messages.push(msg);
+                    } 
                 },
             }
         }
 
-        Err(())
+        messages
     }
 
     pub fn encode(msg: &LinkMessage) -> Vec<u8> {

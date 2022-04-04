@@ -38,8 +38,8 @@ pub fn run(socket: UdpSocket, rx_msg: Receiver<LinkMessage>, rx_cmd: Receiver<us
                     clients.push(addr);
                     println!("new client: {:?}", addr);
                 }
-
-                if let Ok(msg) = trans.put(&buffer[0..nb]) {
+                
+                for msg in trans.put(&buffer[0..nb]) {
                     sink.send(msg).expect("Coordinator is down.");
                 }
             },

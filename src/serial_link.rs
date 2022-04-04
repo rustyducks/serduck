@@ -38,7 +38,7 @@ pub fn run(mut serial: Box<dyn SerialPort>, rx_msg: Receiver<LinkMessage>, rx_cm
         let mut buffer: [u8; 50] = [0; 50];
         match (*serial).read(&mut buffer) {
             Ok(nb) => {
-                if let Ok(msg) = trans.put(&buffer[0..nb]) {
+                for msg in trans.put(&buffer[0..nb]) {
                     #[cfg(feature = "proto_debug")]
                     println!("rcv : {:?}", msg.to_proto().unwrap());
                     sink.send(msg).expect("Coordinator is down.");
