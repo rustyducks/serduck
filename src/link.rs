@@ -1,9 +1,9 @@
-// use anyhow::Result;
 
+#[cfg(feature = "proto_debug")]
+use crate::generated::messages as proto;
+#[cfg(feature = "proto_debug")]
+use protobuf::Message;
 
-// pub trait Link {
-//     fn send_msg(&self, t: LinkMessage) -> Result<()>;
-// }
 
 #[derive(Clone)]
 pub struct LinkMessage {
@@ -18,5 +18,11 @@ impl LinkMessage {
 
     pub fn as_bytes(&self) -> &[u8] {
         &self.buffer[..]
-    }    
+    }
+
+    #[cfg(feature = "proto_debug")]
+    pub fn to_proto(&self) -> anyhow::Result<proto::Message>{
+        let msg = Message::parse_from_bytes(&self.buffer[..])?;
+        Ok(msg)
+    }
 }

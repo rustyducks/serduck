@@ -21,6 +21,8 @@ pub fn run(socket: UdpSocket, rx_msg: Receiver<LinkMessage>, rx_cmd: Receiver<us
 
         match rx_msg.try_recv() {
             Ok(msg) => {
+                #[cfg(feature = "proto_debug")]
+                println!("send: {:?}", msg.to_proto().unwrap());
                 let buf = Transport::encode(&msg);
                 for c in &clients {
                     let _ = socket.send_to(&buf, c);

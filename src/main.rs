@@ -11,8 +11,12 @@ use link::{LinkMessage};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use clap::{Arg, App};
-use std::net::{UdpSocket};
+use std::net::UdpSocket;
 
+#[cfg(feature = "proto_debug")]
+pub mod generated{
+    include!(concat!(env!("OUT_DIR"), "/generated_with_native/mod.rs"));
+}
 
 fn main() -> Result<()> {
 
