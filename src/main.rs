@@ -12,6 +12,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use clap::{Arg, App};
 use std::net::UdpSocket;
+use std::process;
+use std::panic;
 
 #[cfg(feature = "proto_debug")]
 pub mod generated{
@@ -21,6 +23,13 @@ pub mod generated{
 fn main() -> Result<()> {
 
 
+    let orig_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        // invoke the default handler and exit the process
+        orig_hook(panic_info);
+        process::exit(1);
+    }));
+    
     let matches = App::new("Serduck")
         .version("0.1.0")
         .about("UDP/Serial message server.")

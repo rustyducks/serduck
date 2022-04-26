@@ -45,6 +45,7 @@ pub fn run(mut serial: Box<dyn SerialPort>, rx_msg: Receiver<LinkMessage>, rx_cm
                 }
             },
             Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
+            Err(ref e) if e.kind() == io::ErrorKind::BrokenPipe => panic!("BrokenPipe error!"),
             Err(e) => eprintln!("{:?}", e),
 
         };
